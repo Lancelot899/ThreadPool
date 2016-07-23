@@ -68,8 +68,8 @@ public:
         if(idx < 0 || idx >= maxThreadNum)
             return false;
 
-        --sleepThreadNum;
         sourceMutex[idx].lock();
+        --sleepThreadNum;
         workFunc[idx] = f;
         this->x[idx] = x;
         running[idx] = true;
@@ -175,8 +175,9 @@ public:
     bool reduce(int idx, WorkFunc f, pointer x) {
         if(idx < 0 || idx >= maxThreadNum)
             return false;
-        --sleepThreadNum;
+        
         sourceMutex[idx].lock();
+        --sleepThreadNum;
         workFunc[idx] = f;
         this->x[idx] = x[idx];
         running[idx] = true;
