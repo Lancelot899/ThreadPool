@@ -1,3 +1,54 @@
+/**
+ * @file    ThreadPool.h
+ * @brief   this file define a thread pool,
+ *          when you wait to use it, please use the c++11 standard
+ *          what's more, don't forget to add Link flag "-Wl,--no-as-needed"
+ *
+ * @note    it is easy to use
+ *          first you should define work functions, the format must be void(*)(void*),
+ *          you can also define a function object to use
+ *          and then, please define your thread pool, the format is like
+ *          "ThreadPool<DataType> threads(threadNum);" or "ThreadPool<DataType*> threads(threadNum);"
+ *          be attention: void is forbidden
+ *          the two types of pre-define have some difference
+ *          the former is used for one object, the latter is used for object array,
+ *          and next, you can call threads.reduce(numth, workFunction, Data) to call the workFunction
+ *          in numth thread
+ *          at last, if you should know if the thread is Synchronize, call threads.isSynchronize()
+ *
+ * @example
+ * in this example, you can print each value of data
+ *
+ *            void workFunc1(void* data_) {
+ *                double data = *data_;
+ *                printf("data = %lf\n", data);
+ *            }
+ *
+ *            double data1[12];
+ *            ThreadPool<double> threads1(12);
+ *            for(int i = 0; i < 12; ++i)
+ *                threads.reduce(i, workFunc1, data1[i]);
+ *
+ * in next example, you can work with a chunk of data
+ *
+ *          #define ROW 12
+ *          #define COL 24
+ *          void workFunc2(void*data_) {
+ *              double *data = (double*)data_;
+ *              for(int i = 0; i < COL; ++i)
+ *                  deal(data[i]);
+ *          }
+ *
+ *          double data2[ROW][COL];
+ *          ThreadPool<double*> threads2(ROW);
+ *          for(int i = 0; i < 12; ++i)
+ *              threads2.reduce(i, workFunc2, data2[i]);
+ *
+ * @author  lancelot
+ * @date    20160727
+ * @Email  3128243880@qq.com
+ */
+
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
@@ -10,15 +61,15 @@
 #include <atomic>
 
 
-template<typename T> struct Type {
-    typedef  T                 type;
+template<typename T> struct Trait {
+    typedef  T                 typeName;
     typedef  T*                pointer;
-    typedef  T&                refference;
+    typedef  T&                reference;
     typedef const  T*          const_pointer;
-    typedef const  T&          const_refference;
+    typedef const  T&          const_reference;
 };
 
-template <typename T> void defaultFunc(typename Type<T>::const_refference) {}
+template <typename T> void defaultFunc(void *) {}
 
 template <typename T>
 class ThreadPool
@@ -29,7 +80,7 @@ public:
     };
 
 public:
-    typedef std::function<void(typename Type<T>::refference)> WorkFunc;
+    typedef std::function<void(void*)> WorkFunc;
 
 public:
     ThreadPool(int threadNum = 0) {
@@ -52,9 +103,7 @@ public:
     }
 
     ~ThreadPool() {
-        for(int i = 0; i < maxThreadNum; ++i)
-            threads[i].join();
-
+        while(!isSynchronize());
         delete[]workFunc;
         delete[]running;
         delete[]threads;
@@ -64,7 +113,7 @@ public:
         delete[]sourceMutex;
     }
 
-    bool reduce(int idx, WorkFunc f, typename Type<T>::refference x) {
+    bool reduce(int idx, WorkFunc f, typename Trait<T>::reference x) {
         if(idx < 0 || idx >= maxThreadNum)
             return false;
 
@@ -91,7 +140,7 @@ private:
             if(running[idx] == false)
                 conditionVal[idx].wait(lock);
 
-            workFunc[idx](x[idx]);
+            workFunc[idx]((void*)&x[idx]);
             ++sleepThreadNum;
             workFunc[idx] = defaultFunc<T>;
             running[idx] = false;
@@ -124,11 +173,11 @@ template <typename T>
 class ThreadPool<T*>
 {
 public:
-    typedef typename Type<T>::const_pointer    const_pointer;
-    typedef typename Type<T>::const_refference const_refference;
-    typedef typename Type<T>::pointer          pointer;
-    typedef typename Type<T>::refference       refference;
-    typedef typename Type<T>::type             type;
+    typedef typename Trait<T>::const_pointer    const_pointer;
+    typedef typename Trait<T>::const_reference  const_reference;
+    typedef typename Trait<T>::pointer          pointer;
+    typedef typename Trait<T>::reference        reference;
+    typedef typename Trait<T>::typeName         typeName;
 
 public:
     enum {
@@ -136,7 +185,7 @@ public:
     };
 
 public:
-    typedef std::function<void(refference)> WorkFunc;
+    typedef std::function<void(void*)> WorkFunc;
 
 public:
     ThreadPool(int threadNum = 0) {
@@ -147,22 +196,20 @@ public:
         threads        = new std::thread[maxThreadNum];
         Mutex          = new std::mutex[maxThreadNum];
         conditionVal   = new std::condition_variable[maxThreadNum];
-        x              = new type[maxThreadNum];
+        x              = new pointer[maxThreadNum];
         sourceMutex    = new std::mutex[maxThreadNum];
 
         sleepThreadNum = maxThreadNum;
 
         for(int i = 0; i < maxThreadNum; ++i) {
-            workFunc[i] = defaultFunc<type>;
+            workFunc[i] = defaultFunc<typeName>;
             running[i] = false;
             threads[i] = std::thread(&ThreadPool::workLoop, this, i);
         }
     }
 
     ~ThreadPool() {
-        for(int i = 0; i < maxThreadNum; ++i)
-            threads[i].join();
-
+        while(!isSynchronize());
         delete[]workFunc;
         delete[]running;
         delete[]threads;
@@ -179,7 +226,7 @@ public:
         sourceMutex[idx].lock();
         --sleepThreadNum;
         workFunc[idx] = f;
-        this->x[idx] = x[idx];
+        this->x[idx] = x;
         running[idx] = true;
         sourceMutex[idx].unlock();
 
@@ -199,7 +246,7 @@ private:
             if(running[idx] == false)
                 conditionVal[idx].wait(lock);
 
-            workFunc[idx](x[idx]);
+            workFunc[idx]((void*)x[idx]);
             ++sleepThreadNum;
             workFunc[idx] = defaultFunc<T>;
             running[idx] = false;
@@ -220,7 +267,7 @@ private:
     /// \brief workFunc param
     /////////////////////////////////////////
     WorkFunc    *workFunc;
-    type        *x;
+    pointer     *x;
     bool        *running;
     std::mutex  *sourceMutex;
 };
