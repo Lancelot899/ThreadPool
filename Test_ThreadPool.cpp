@@ -6,6 +6,9 @@
 
 #include <opencv2/opencv.hpp>
 
+
+using namespace pi;
+
 void testPrint(int x) {
     printf("thread = %d\n", x);
 }

@@ -61,6 +61,8 @@
 #include <atomic>
 
 
+namespace pi {
+
 template<typename T> struct Trait {
     typedef  T                 typeName;
     typedef  T*                pointer;
@@ -272,6 +274,7 @@ private:
     std::mutex  *sourceMutex;
 };
 
-
+} // end of namespace pi
 
 #endif // THREADPOOL_H
+
