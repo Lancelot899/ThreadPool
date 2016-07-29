@@ -9,8 +9,15 @@
 
 using namespace pi;
 
-void testPrint(int x) {
+void testPrint(void* x_) {
+    int x = *((int*)x_);
     printf("thread = %d\n", x);
+}
+
+void testPrintPtr(void *x_) {
+    int *x = (int*)x_;
+    for(int i = 0; i< 10; ++i)
+        printf("x = %d\n", *(x + i));
 }
 
 
@@ -35,9 +42,10 @@ struct Data {
 };
 
 
-void testOpt(Data &data)
+void testOpt(void* data_)
 {
-    (*data.outPut) = data.input.clone();
+    Data *data = (Data*)data_;
+    *(data->outPut) = data->input.clone();
 }
 
 void testUnpoint() {
@@ -53,30 +61,7 @@ void testUnpoint() {
 
 
 
-    printf("test unpointer version over!\nplease press any key to exit..");
-    getchar();
-
-    exit(0);
-}
-
-void testPoint() {
-    int idata[100];
-    for(int i = 0; i < 100; ++i)
-    {
-        idata[i] = i;
-    }
-
-    ThreadPool<int *> threads(10);
-    int cnt = 0;
-    while (cnt < 10) {
-        for(int i = 0; i < 10; ++i) {
-            threads.reduce(i, testPrint, idata + 10 * i);
-        }
-        cnt++;
-        while(!threads.isSynchronize());
-    }
-
-    printf("test pointer version over!\nplease press any key to continue...");
+    printf("test unpointer version over!\nplease press any key to continue...");
     getchar();
 
     Data data[4];
@@ -89,10 +74,10 @@ void testPoint() {
         data[i].outPut = new cv::Mat;
     }
 
-    ThreadPool<Data*> thread(4);
+    ThreadPool<Data> thread(4);
 
     for(int i = 0; i < 4; ++i) {
-        thread.reduce(i, testOpt, data);
+        thread.reduce(i, testOpt, data[i]);
     }
 
     while(!thread.isSynchronize());
@@ -110,6 +95,34 @@ void testPoint() {
     exit(0);
 }
 
+void testPointer() {
+    int idata[100];
+    for(int i = 0; i < 100; ++i)
+    {
+        idata[i] = i;
+    }
+
+    ThreadPool<int *> threads(10);
+    int cnt = 0;
+    while (cnt < 10) {
+        printf("Test Loop [%2d]\n", cnt);
+
+        for(int i = 0; i < 10; ++i) {
+            threads.reduce(i, testPrintPtr, idata + 10 * i);
+        }
+        cnt++;
+        while(!threads.isSynchronize());
+
+        printf("\n\n");
+    }
+
+    printf("test pointer version over!\nplease press any key to exit..");
+    getchar();
+
+
+    exit(0);
+}
+
 int main(int argc, char *argv[]) {
     if(argc == 1) {
         printf("default test unpointer version!\n");
@@ -119,7 +132,7 @@ int main(int argc, char *argv[]) {
     else {
         if(!strcmp(argv[1], "testPointer")) {
             printf("choose pointer version!\n");
-            testPoint();
+            testPointer();
         }
         else if(!strcmp(argv[1], "testUnPointer")) {
             printf("choose unpointer version\n");
