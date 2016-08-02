@@ -132,6 +132,22 @@ public:
         return sleepThreadNum == maxThreadNum;
     }
 
+    template<class U>
+    bool reduce(int idx, void (U::*f)(void*) , U* p, typename Trait<T>::reference x) {
+        if(idx < 0 || idx >= maxThreadNum)
+            return false;
+
+        sourceMutex[idx].lock();
+        --sleepThreadNum;
+        workFunc[idx] = std::bind(f, p, std::placeholders::_1);
+        this->x[idx] = x;
+        running[idx] = true;
+        sourceMutex[idx].unlock();
+
+        conditionVal[idx].notify_all();
+        return true;
+    }
+
 private:
     void workLoop(int idx) {
         std::unique_lock<std::mutex> lock(Mutex[idx]);
@@ -226,6 +242,22 @@ public:
         sourceMutex[idx].lock();
         --sleepThreadNum;
         workFunc[idx] = f;
+        this->x[idx] = x;
+        running[idx] = true;
+        sourceMutex[idx].unlock();
+
+        conditionVal[idx].notify_all();
+        return true;
+    }
+
+    template<class U>
+    bool reduce(int idx, void (U::*f)(void*) , U* p, pointer x) {
+        if(idx < 0 || idx >= maxThreadNum)
+            return false;
+
+        sourceMutex[idx].lock();
+        --sleepThreadNum;
+        workFunc[idx] = std::bind(f, p, std::placeholders::_1);
         this->x[idx] = x;
         running[idx] = true;
         sourceMutex[idx].unlock();
