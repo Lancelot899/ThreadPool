@@ -9,6 +9,18 @@
 
 using namespace pi;
 
+
+class Tst {
+public:
+    static void printTst(void *) {
+        printf("static Tst::printTst\n");
+    }
+
+    void printTst2(void*) {
+        printf("Tst::printTst2\n");
+    }
+};
+
 void testPrint(void* x_) {
     int x = *((int*)x_);
     printf("thread = %d\n", x);
@@ -123,6 +135,25 @@ void testPointer() {
     exit(0);
 }
 
+
+void tstClass() {
+    ThreadPool<int> threadPool(2);
+
+    Tst t;
+
+    int i = 0;
+
+    threadPool.reduce(0, &Tst::printTst, i);
+    threadPool.reduce(1, &Tst::printTst2, &t, i);
+
+    while(!threadPool.isSynchronize()) std::this_thread::yield();
+    printf("\ntest class member function version over!\nplease press any key to exit..\n");
+    getchar();
+
+    exit(0);
+
+}
+
 int main(int argc, char *argv[]) {
     if(argc == 1) {
         printf("default test unpointer version!\n");
@@ -138,6 +169,12 @@ int main(int argc, char *argv[]) {
             printf("choose unpointer version\n");
             testUnpoint();
         }
+
+        else if(!strcmp(argv[1], "testClass")) {
+            printf("choose class member function version\n");
+            tstClass();
+        }
+
         else {
             printf("err!! please input \"testPointer\" or \"testUnPointer\" to test this code!\n");
             return 0;

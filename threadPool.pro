@@ -11,7 +11,7 @@ OBJECTS_DIR = ./build
 
 # Input
 HEADERS += ThreadPool.h
-SOURCES += test.cpp
+SOURCES += Test_ThreadPool.cpp
 QMAKE_CXXFLAGS += -std=c++11
 QMAKE_LFLAGS += -Wl,--no-as-needed
 

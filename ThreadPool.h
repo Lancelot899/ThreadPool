@@ -47,6 +47,7 @@
  * @author  lancelot
  * @date    20160727
  * @Email  3128243880@qq.com
+ * @version 1.3
  */
 
 #ifndef THREADPOOL_H
@@ -148,6 +149,23 @@ public:
         conditionVal[idx].notify_all();
         return true;
     }
+
+    template<class U>
+    bool reduce(int idx, void (U::*f)(void*) , typename Trait<T>::reference x) {
+        if(idx < 0 || idx >= maxThreadNum)
+            return false;
+
+        sourceMutex[idx].lock();
+        --sleepThreadNum;
+        workFunc[idx] = std::bind(f, std::placeholders::_1);
+        this->x[idx] = x;
+        running[idx] = true;
+        sourceMutex[idx].unlock();
+
+        conditionVal[idx].notify_all();
+        return true;
+    }
+
 
 private:
     void workLoop(int idx) {
@@ -266,6 +284,23 @@ public:
         conditionVal[idx].notify_all();
         return true;
     }
+
+    template<class U>
+    bool reduce(int idx, void (U::*f)(void*) , pointer x) {
+        if(idx < 0 || idx >= maxThreadNum)
+            return false;
+
+        sourceMutex[idx].lock();
+        --sleepThreadNum;
+        workFunc[idx] = std::bind(f, std::placeholders::_1);
+        this->x[idx] = x;
+        running[idx] = true;
+        sourceMutex[idx].unlock();
+
+        conditionVal[idx].notify_all();
+        return true;
+    }
+
 
     bool isSynchronize() {
         return sleepThreadNum == maxThreadNum;
