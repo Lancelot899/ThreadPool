@@ -60,6 +60,7 @@
 #include <condition_variable>
 #include <atomic>
 
+namespace pi {
 
 template<typename T> struct Trait {
     typedef  T                 typeName;
@@ -306,4 +307,7 @@ private:
 
 
 
+} // end of namespace pi
+
 #endif // THREADPOOL_H
+
